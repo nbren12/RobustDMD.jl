@@ -164,21 +164,27 @@ function dmdexactestimate(m,n,k,X,t;dmdtype="trap")
         dmdl2B!(B,alpha,m,n,k,X,t)
         
     else
+        Xt = X'
+        # dx = view(X, :, 2:m) .- view(X, :, 1:m-1)
+        dx = zeros(typeof(X[1]), n, m-1, )
+        xin = zeros(typeof(X[1]), n, m-1)
 
-        dx = (transpose(X[2:end,:]) - transpose(X[1:end-1,:]))
-        
         for j = 1:m-1
             dt = t[j+1]-t[j]
             for i = 1:n
-                dx[i,j] = dx[i,j]/dt
+                dx[i,j] = (Xt[i,j+1]-Xt[i,j])/dt
+                xin[i,j] = .5 * (Xt[i,j+1] + Xt[i,j])
             end
         end
-        
-        xin = 0.5*(transpose(X[1:end-1,:]) + transpose(X[2:end,:]))
-        u, s, v = svd(xin,thin = true)
-        u1 = u[:,1:k]
-        s1 = diagm(s[1:k])
-        v1 = v[:,1:k]
+
+        # xin = 0.5 * (view(X, :, 2:m) .+ view(X, :, 1:m-1))
+        # xin = 0.5*(transpose(X[1:end-1,:]) + transpose(X[2:end,:]))
+        svd_obj = svds(xin, nsv=k)[1]
+        u1, s, v = svd_obj.U, svd_obj.S, svd_obj.Vt
+        # u, s, v = svd(xin,thin = true)
+        # u1 = u[:,1:k]
+        s1 = diagm(s)
+        v1 = v'
         atilde = u1'*dx*v1/s1
         alpha = eigvals(atilde)
         B = zeros(Complex{Float64},k,n)
